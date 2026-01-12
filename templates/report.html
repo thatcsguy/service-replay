@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rama Replay Diff Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-deep: #05080a;
+      --bg-primary: #0a0e12;
+      --bg-secondary: #111920;
+      --bg-tertiary: #1a232d;
+      --bg-hover: #243040;
+      --border: #2a3a4a;
+      --border-glow: #3a5a7a;
+      --text-primary: #e8f0f8;
+      --text-secondary: #8a9aaa;
+      --text-muted: #5a6a7a;
+      --accent-green: #00ff88;
+      --accent-green-dim: #00cc6a;
+      --accent-green-glow: rgba(0, 255, 136, 0.3);
+      --accent-red: #ff4757;
+      --accent-red-dim: #cc3a47;
+      --accent-red-glow: rgba(255, 71, 87, 0.3);
+      --accent-amber: #ffb800;
+      --accent-amber-glow: rgba(255, 184, 0, 0.2);
+      --accent-cyan: #00d4ff;
+      --diff-add-bg: rgba(0, 255, 136, 0.12);
+      --diff-add-border: rgba(0, 255, 136, 0.4);
+      --diff-remove-bg: rgba(255, 71, 87, 0.12);
+      --diff-remove-border: rgba(255, 71, 87, 0.4);
+      --scrollbar-track: #111920;
+      --scrollbar-thumb: #2a3a4a;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      font-family: 'Space Mono', monospace;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      line-height: 1.6;
+    }
+
+    /* Scanline overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.1) 2px,
+        rgba(0, 0, 0, 0.1) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: var(--scrollbar-track);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: var(--scrollbar-thumb);
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--border-glow);
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      grid-template-rows: auto auto 1fr;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Header */
+    .header {
+      grid-column: 1 / -1;
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+      opacity: 0.5;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent-green), var(--accent-cyan));
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--bg-deep);
+      box-shadow: 0 0 20px var(--accent-green-glow);
+    }
+
+    .logo-text {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .logo-text span {
+      color: var(--accent-green);
+    }
+
+    .header-stats {
+      display: flex;
+      gap: 24px;
+      font-size: 12px;
+    }
+
+    .stat {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stat-label {
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .stat-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+    }
+
+    .stat-value.green { color: var(--accent-green); }
+    .stat-value.red { color: var(--accent-red); }
+    .stat-value.amber { color: var(--accent-amber); }
+
+    /* Command bar */
+    .command-bar {
+      grid-column: 1 / -1;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .command-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .command-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent-cyan);
+      background: var(--bg-tertiary);
+      padding: 6px 12px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      overflow-x: auto;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .command-value::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: var(--bg-primary);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .search-container {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .search-input {
+      width: 100%;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--text-primary);
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .search-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .search-input:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+    }
+
+    .filter-tabs {
+      display: flex;
+      padding: 12px 16px;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .filter-tab {
+      flex: 1;
+      padding: 8px 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .filter-tab:hover {
+      background: var(--bg-tertiary);
+      border-color: var(--border-glow);
+    }
+
+    .filter-tab.active {
+      background: var(--bg-tertiary);
+      border-color: var(--accent-cyan);
+      color: var(--accent-cyan);
+    }
+
+    .query-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+    }
+
+    .query-item {
+      padding: 12px 14px;
+      margin-bottom: 4px;
+      background: var(--bg-secondary);
+      border: 1px solid transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      position: relative;
+    }
+
+    .query-item:hover {
+      background: var(--bg-tertiary);
+      border-color: var(--border);
+    }
+
+    .query-item.active {
+      background: var(--bg-tertiary);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 20px rgba(0, 212, 255, 0.1);
+    }
+
+    .query-item.has-diff {
+      border-left: 3px solid var(--accent-red);
+    }
+
+    .query-item.no-diff {
+      border-left: 3px solid var(--accent-green);
+    }
+
+    .query-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+      word-break: break-word;
+    }
+
+    .query-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+
+    .query-status {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .status-dot.green {
+      background: var(--accent-green);
+      box-shadow: 0 0 8px var(--accent-green-glow);
+    }
+
+    .status-dot.red {
+      background: var(--accent-red);
+      box-shadow: 0 0 8px var(--accent-red-glow);
+      animation: pulse-red 2s infinite;
+    }
+
+    @keyframes pulse-red {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Main content */
+    .main {
+      background: var(--bg-deep);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .content-header {
+      padding: 20px 24px;
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .content-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .content-meta {
+      display: flex;
+      gap: 20px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .meta-label {
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .meta-value {
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .variables-section {
+      margin-top: 16px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .variables-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--bg-tertiary);
+      cursor: pointer;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      transition: color 0.2s;
+    }
+
+    .variables-header:hover {
+      color: var(--text-primary);
+    }
+
+    .variables-toggle {
+      font-size: 10px;
+      color: var(--accent-cyan);
+    }
+
+    .variables-content {
+      padding: 12px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: var(--text-secondary);
+      max-height: 150px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .variables-content.open {
+      display: block;
+    }
+
+    /* Diff viewer */
+    .diff-container {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .diff-header {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .diff-pane-header {
+      padding: 12px 20px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .diff-pane-header:first-child {
+      border-right: 1px solid var(--border);
+      color: var(--accent-amber);
+    }
+
+    .diff-pane-header:last-child {
+      color: var(--accent-cyan);
+    }
+
+    .diff-pane-icon {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .diff-pane-icon.local {
+      background: var(--accent-amber);
+      box-shadow: 0 0 8px var(--accent-amber-glow);
+    }
+
+    .diff-pane-icon.prod {
+      background: var(--accent-cyan);
+      box-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
+    }
+
+    .diff-body {
+      flex: 1;
+      overflow: auto;
+      background: var(--bg-secondary);
+    }
+
+    .diff-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .diff-row {
+      display: flex;
+      min-height: 22px;
+    }
+
+    .diff-cell {
+      flex: 1;
+      display: flex;
+      min-width: 0;
+    }
+
+    .diff-cell:first-child {
+      border-right: 2px solid var(--border);
+    }
+
+    .diff-cell.empty {
+      background: var(--bg-tertiary);
+      opacity: 0.5;
+    }
+
+    .line-number {
+      width: 45px;
+      min-width: 45px;
+      padding: 0 8px;
+      text-align: right;
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
+      user-select: none;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+    }
+
+    .line-content {
+      flex: 1;
+      padding: 0 12px;
+      white-space: pre;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .diff-cell.add {
+      background: var(--diff-add-bg);
+    }
+
+    .diff-cell.add .line-number {
+      background: rgba(0, 255, 136, 0.15);
+      color: var(--accent-green);
+    }
+
+    .diff-cell.add .line-content {
+      border-left: 2px solid var(--accent-green);
+    }
+
+    .diff-cell.remove {
+      background: var(--diff-remove-bg);
+    }
+
+    .diff-cell.remove .line-number {
+      background: rgba(255, 71, 87, 0.15);
+      color: var(--accent-red);
+    }
+
+    .diff-cell.remove .line-content {
+      border-left: 2px solid var(--accent-red);
+    }
+
+    .diff-cell.empty .line-number {
+      background: rgba(30, 40, 50, 0.8);
+      color: transparent;
+    }
+
+    .diff-cell.empty .line-content {
+      background: repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 4px,
+        rgba(40, 50, 60, 0.5) 4px,
+        rgba(40, 50, 60, 0.5) 8px
+      );
+    }
+
+    /* JSON syntax highlighting */
+    .json-key { color: #7dd3fc; }
+    .json-string { color: #86efac; }
+    .json-number { color: #fca5a5; }
+    .json-boolean { color: #c4b5fd; }
+    .json-null { color: #94a3b8; }
+    .json-bracket { color: #fcd34d; }
+
+    /* Empty state */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      gap: 16px;
+    }
+
+    .empty-icon {
+      font-size: 48px;
+      opacity: 0.3;
+    }
+
+    .empty-text {
+      font-size: 14px;
+    }
+
+    /* No diff state */
+    .no-diff-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: rgba(0, 255, 136, 0.1);
+      border: 1px solid var(--accent-green);
+      border-radius: 20px;
+      color: var(--accent-green);
+      font-size: 12px;
+      font-weight: 500;
+      margin: 24px;
+    }
+
+    .unified-view {
+      padding: 16px;
+    }
+
+    .unified-json {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: calc(100vh - 350px);
+      overflow: auto;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .app {
+        grid-template-columns: 280px 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto 1fr;
+      }
+
+      .sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+        max-height: 40vh;
+      }
+
+      .diff-header {
+        grid-template-columns: 1fr;
+      }
+
+      .diff-row {
+        flex-direction: column;
+      }
+
+      .diff-cell:first-child {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="logo">
+        <div class="logo-icon">RR</div>
+        <div class="logo-text">RAMA<span>_</span>REPLAY</div>
+      </div>
+      <div class="header-stats">
+        <div class="stat">
+          <span class="stat-label">Total</span>
+          <span class="stat-value amber" id="stat-total">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Diffs</span>
+          <span class="stat-value red" id="stat-diffs">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Clean</span>
+          <span class="stat-value green" id="stat-clean">0</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">Generated</span>
+          <span class="stat-value" id="stat-time">--</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="command-bar">
+      <span class="command-label">Command</span>
+      <code class="command-value" id="command-value">--</code>
+    </div>
+
+    <aside class="sidebar">
+      <div class="search-container">
+        <input type="text" class="search-input" placeholder="Search queries..." id="search-input">
+      </div>
+      <div class="filter-tabs">
+        <button class="filter-tab active" data-filter="all">All</button>
+        <button class="filter-tab" data-filter="diffs">Diffs</button>
+        <button class="filter-tab" data-filter="clean">Clean</button>
+      </div>
+      <div class="query-list" id="query-list"></div>
+    </aside>
+
+    <main class="main">
+      <div id="empty-state" class="empty-state">
+        <div class="empty-icon">◇</div>
+        <div class="empty-text">Select a query to view comparison</div>
+      </div>
+      <div id="query-view" style="display: none; height: 100%; display: none; flex-direction: column;">
+        <div class="content-header">
+          <div class="content-title" id="view-title">--</div>
+          <div class="content-meta">
+            <div class="meta-item">
+              <span class="meta-label">ID:</span>
+              <span class="meta-value" id="view-id">--</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-label">Time:</span>
+              <span class="meta-value" id="view-time">--</span>
+            </div>
+          </div>
+          <div class="variables-section">
+            <div class="variables-header" id="variables-toggle">
+              <span>Variables</span>
+              <span class="variables-toggle">▼</span>
+            </div>
+            <div class="variables-content" id="variables-content"></div>
+          </div>
+        </div>
+        <div class="diff-container">
+          <div class="diff-header">
+            <div class="diff-pane-header">
+              <span class="diff-pane-icon local"></span>
+              Local
+            </div>
+            <div class="diff-pane-header">
+              <span class="diff-pane-icon prod"></span>
+              Production
+            </div>
+          </div>
+          <div class="diff-body" id="diff-body"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Placeholder DATA - will be replaced by the generator
+    window.DATA = window.DATA || {
+      generatedAt: new Date().toISOString(),
+      command: '',
+      summary: { total: 0, withDiffs: 0, withoutDiffs: 0 },
+      results: []
+    };
+
+    class DiffReportApp {
+      constructor() {
+        this.currentFilter = 'all';
+        this.searchTerm = '';
+        this.selectedIndex = -1;
+        this.init();
+      }
+
+      init() {
+        this.renderStats();
+        this.renderQueryList();
+        this.bindEvents();
+
+        // Auto-select first item if available
+        if (window.DATA.results.length > 0) {
+          this.selectQuery(0);
+        }
+      }
+
+      renderStats() {
+        document.getElementById('stat-total').textContent = window.DATA.summary.total;
+        document.getElementById('stat-diffs').textContent = window.DATA.summary.withDiffs;
+        document.getElementById('stat-clean').textContent = window.DATA.summary.withoutDiffs;
+        document.getElementById('stat-time').textContent = this.formatDate(window.DATA.generatedAt);
+        document.getElementById('command-value').textContent = window.DATA.command || '--';
+      }
+
+      renderQueryList() {
+        const container = document.getElementById('query-list');
+        const filtered = this.getFilteredResults();
+
+        container.innerHTML = filtered.map((result, idx) => {
+          const originalIndex = window.DATA.results.indexOf(result);
+          const statusClass = result.hasDiff ? 'has-diff' : 'no-diff';
+          const dotClass = result.hasDiff ? 'red' : 'green';
+          const statusText = result.hasDiff ? 'Has diffs' : 'No diffs';
+          const activeClass = originalIndex === this.selectedIndex ? 'active' : '';
+
+          return `
+            <div class="query-item ${statusClass} ${activeClass}" data-index="${originalIndex}">
+              <div class="query-name">${this.escapeHtml(result.query.operationName)}</div>
+              <div class="query-meta">
+                <div class="query-status">
+                  <span class="status-dot ${dotClass}"></span>
+                  <span>${statusText}</span>
+                </div>
+                <span>${this.formatTimestamp(result.query.timestamp)}</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      getFilteredResults() {
+        return window.DATA.results.filter(result => {
+          const matchesFilter = this.currentFilter === 'all' ||
+            (this.currentFilter === 'diffs' && result.hasDiff) ||
+            (this.currentFilter === 'clean' && !result.hasDiff);
+
+          const matchesSearch = !this.searchTerm ||
+            result.query.operationName.toLowerCase().includes(this.searchTerm.toLowerCase());
+
+          return matchesFilter && matchesSearch;
+        });
+      }
+
+      selectQuery(index) {
+        this.selectedIndex = index;
+        const result = window.DATA.results[index];
+
+        document.getElementById('empty-state').style.display = 'none';
+        const queryView = document.getElementById('query-view');
+        queryView.style.display = 'flex';
+
+        document.getElementById('view-title').textContent = result.query.operationName;
+        document.getElementById('view-id').textContent = result.query.executionId;
+        document.getElementById('view-time').textContent = this.formatTimestamp(result.query.timestamp);
+
+        const varsContent = document.getElementById('variables-content');
+        try {
+          const vars = JSON.parse(result.query.variables);
+          varsContent.textContent = JSON.stringify(vars, null, 2);
+        } catch {
+          varsContent.textContent = result.query.variables;
+        }
+
+        this.renderDiff(result);
+        this.renderQueryList();
+      }
+
+      renderDiff(result) {
+        const container = document.getElementById('diff-body');
+
+        if (!result.hasDiff) {
+          container.innerHTML = `
+            <div style="padding: 24px;">
+              <div class="no-diff-badge">
+                <span class="status-dot green"></span>
+                Responses are identical
+              </div>
+              <div class="unified-view">
+                <div class="unified-json">${this.highlightJson(result.localJson)}</div>
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        const localLines = result.localJson.split('\n');
+        const prodLines = result.productionJson.split('\n');
+
+        // Build diff maps - track which lines are removed/added
+        const removedLines = new Set();
+        const addedLines = new Set();
+
+        if (result.diff && result.diff.hunks) {
+          for (const hunk of result.diff.hunks) {
+            for (const line of hunk.lines) {
+              if (line.type === 'remove' && line.oldLineNumber) {
+                removedLines.add(line.oldLineNumber - 1);
+              }
+              if (line.type === 'add' && line.newLineNumber) {
+                addedLines.add(line.newLineNumber - 1);
+              }
+            }
+          }
+        }
+
+        // Build aligned rows
+        const rows = [];
+        let localIdx = 0;
+        let prodIdx = 0;
+
+        while (localIdx < localLines.length || prodIdx < prodLines.length) {
+          const localRemoved = removedLines.has(localIdx);
+          const prodAdded = addedLines.has(prodIdx);
+
+          if (localRemoved && !prodAdded) {
+            // Line only in local (removed)
+            rows.push({
+              local: { line: localLines[localIdx], num: localIdx + 1, type: 'remove' },
+              prod: null
+            });
+            localIdx++;
+          } else if (prodAdded && !localRemoved) {
+            // Line only in production (added)
+            rows.push({
+              local: null,
+              prod: { line: prodLines[prodIdx], num: prodIdx + 1, type: 'add' }
+            });
+            prodIdx++;
+          } else if (localRemoved && prodAdded) {
+            // Both changed - show side by side as modification
+            rows.push({
+              local: { line: localLines[localIdx], num: localIdx + 1, type: 'remove' },
+              prod: { line: prodLines[prodIdx], num: prodIdx + 1, type: 'add' }
+            });
+            localIdx++;
+            prodIdx++;
+          } else {
+            // Context line - same on both sides
+            rows.push({
+              local: localIdx < localLines.length ? { line: localLines[localIdx], num: localIdx + 1, type: '' } : null,
+              prod: prodIdx < prodLines.length ? { line: prodLines[prodIdx], num: prodIdx + 1, type: '' } : null
+            });
+            if (localIdx < localLines.length) localIdx++;
+            if (prodIdx < prodLines.length) prodIdx++;
+          }
+        }
+
+        // Render aligned rows
+        const rowsHtml = rows.map(row => {
+          const localCell = row.local
+            ? `<div class="diff-cell ${row.local.type}">
+                <span class="line-number">${row.local.num}</span>
+                <span class="line-content">${this.highlightJson(this.escapeHtml(row.local.line))}</span>
+              </div>`
+            : `<div class="diff-cell empty">
+                <span class="line-number"></span>
+                <span class="line-content"></span>
+              </div>`;
+
+          const prodCell = row.prod
+            ? `<div class="diff-cell ${row.prod.type}">
+                <span class="line-number">${row.prod.num}</span>
+                <span class="line-content">${this.highlightJson(this.escapeHtml(row.prod.line))}</span>
+              </div>`
+            : `<div class="diff-cell empty">
+                <span class="line-number"></span>
+                <span class="line-content"></span>
+              </div>`;
+
+          return `<div class="diff-row">${localCell}${prodCell}</div>`;
+        }).join('');
+
+        container.innerHTML = `<div class="diff-table">${rowsHtml}</div>`;
+      }
+
+      highlightJson(text) {
+        return text
+          .replace(/"([^"]+)":/g, '<span class="json-key">"$1"</span>:')
+          .replace(/: "([^"]*)"/g, ': <span class="json-string">"$1"</span>')
+          .replace(/: (-?\d+\.?\d*)/g, ': <span class="json-number">$1</span>')
+          .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>')
+          .replace(/: null/g, ': <span class="json-null">null</span>')
+          .replace(/([{}\[\]])/g, '<span class="json-bracket">$1</span>');
+      }
+
+      escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
+      formatDate(isoString) {
+        const date = new Date(isoString);
+        return date.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      }
+
+      formatTimestamp(ts) {
+        const date = new Date(ts);
+        return date.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit'
+        });
+      }
+
+      bindEvents() {
+        // Search
+        document.getElementById('search-input').addEventListener('input', (e) => {
+          this.searchTerm = e.target.value;
+          this.renderQueryList();
+        });
+
+        // Filter tabs
+        document.querySelectorAll('.filter-tab').forEach(tab => {
+          tab.addEventListener('click', (e) => {
+            document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+            e.target.classList.add('active');
+            this.currentFilter = e.target.dataset.filter;
+            this.renderQueryList();
+          });
+        });
+
+        // Query selection
+        document.getElementById('query-list').addEventListener('click', (e) => {
+          const item = e.target.closest('.query-item');
+          if (item) {
+            const index = parseInt(item.dataset.index);
+            this.selectQuery(index);
+          }
+        });
+
+        // Variables toggle
+        document.getElementById('variables-toggle').addEventListener('click', () => {
+          const content = document.getElementById('variables-content');
+          content.classList.toggle('open');
+        });
+      }
+    }
+
+    // Initialize app when DOM is ready
+    document.addEventListener('DOMContentLoaded', () => {
+      new DiffReportApp();
+    });
+  </script>
+</body>
+</html>
