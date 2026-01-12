@@ -20,7 +20,7 @@ export async function executeQuery(options: ExecuteQueryOptions): Promise<QueryR
     const body = JSON.stringify({
       query: query.requestBody,
       variables,
-      operationName: query.operationName.replace('REPLAY-', ''),
+      operationName: `REPLAY-${query.operationName}`,
     });
 
     const response = await fetch(endpoint, {
