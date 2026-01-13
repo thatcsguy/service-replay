@@ -28,14 +28,14 @@ export interface ReportData {
 }
 
 export function generateReport(results: QueryResult[], outputPath: string, command: string): void {
-  const templatePath = join(__dirname, '..', 'templates', 'report.html');
+  const templatePath = join(__dirname, '..', 'templates', 'template.html');
   let template: string;
 
   try {
     template = readFileSync(templatePath, 'utf-8');
   } catch {
     // If running from dist, try different path
-    const altPath = join(__dirname, '..', '..', 'templates', 'report.html');
+    const altPath = join(__dirname, '..', '..', 'templates', 'template.html');
     template = readFileSync(altPath, 'utf-8');
   }
 

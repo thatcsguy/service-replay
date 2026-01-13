@@ -48,7 +48,7 @@ The CLI (`index.ts`) orchestrates the pipeline using Commander for argument pars
 
 ## Output
 
-The tool generates a standalone HTML report (`templates/report.html`) with:
+The tool generates a standalone HTML report (`templates/template.html`) with:
 - Side-by-side diff viewer with JSON syntax highlighting
 - Filter by queries with/without differences
 - Search by operation name

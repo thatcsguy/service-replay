@@ -23,7 +23,7 @@ program
   .option('-o, --output <path>', 'Output HTML file path', './report.html')
   .option('-c, --concurrency <number>', 'Number of concurrent requests', '5')
   .action(async (options) => {
-    const command = process.argv.join(' ');
+    const command = 'rama-replay ' + process.argv.slice(2).join(' ');
 
     try {
       console.log('🔧 Loading configuration...');
