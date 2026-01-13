@@ -25,3 +25,7 @@ Thumbs.db
 
 # TypeScript cache
 *.tsbuildinfo
+
+report.html
+
+tmpclaude*

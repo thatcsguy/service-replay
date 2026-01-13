@@ -42,11 +42,24 @@ program
         return;
       }
 
-      console.log(`📋 Found ${queries.length} queries`);
+      // Filter out introspection queries as they're not useful to diff
+      const filteredQueries = queries.filter(q => q.operationName !== 'IntrospectionQuery');
+      const skipped = queries.length - filteredQueries.length;
+
+      if (skipped > 0) {
+        console.log(`📋 Found ${queries.length} queries (skipping ${skipped} IntrospectionQuery)`);
+      } else {
+        console.log(`📋 Found ${queries.length} queries`);
+      }
+
+      if (filteredQueries.length === 0) {
+        console.log('⚠️  No queries to process after filtering.');
+        return;
+      }
 
       console.log('🚀 Executing queries against local and production...');
       const executedPairs = await executeAllQueries({
-        queries,
+        queries: filteredQueries,
         localEndpoint: config.localGraphqlUrl,
         localAuth: config.localAuth,
         productionEndpoint: config.productionGraphqlUrl,
