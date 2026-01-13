@@ -1,179 +1,156 @@
-import type { QueryResponse, DiffResult, DiffHunk, DiffLine } from './types.js';
+import type { QueryResponse, DiffResult, DiffChange } from './types.js';
 
-function formatJson(data: unknown): string {
-  try {
-    return JSON.stringify(data, null, 2);
-  } catch {
-    return String(data);
-  }
+const MAX_CHANGES = 500; // Limit to prevent huge diffs
+
+function isObject(val: unknown): val is Record<string, unknown> {
+  return val !== null && typeof val === 'object' && !Array.isArray(val);
 }
 
-function computeLCS(a: string[], b: string[]): number[][] {
-  const m = a.length;
-  const n = b.length;
-  const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+function isArray(val: unknown): val is unknown[] {
+  return Array.isArray(val);
+}
 
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (a[i - 1] === b[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1] + 1;
+function formatPath(segments: (string | number)[]): string {
+  if (segments.length === 0) return '(root)';
+
+  return segments.reduce<string>((path, segment, idx) => {
+    if (typeof segment === 'number') {
+      return `${path}[${segment}]`;
+    }
+    // Use dot notation for valid identifiers, bracket notation otherwise
+    if (/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(segment)) {
+      return idx === 0 ? segment : `${path}.${segment}`;
+    }
+    return `${path}["${segment}"]`;
+  }, '');
+}
+
+function collectChanges(
+  local: unknown,
+  production: unknown,
+  path: (string | number)[],
+  changes: DiffChange[],
+  maxChanges: number
+): void {
+  // Stop if we've hit the limit
+  if (changes.length >= maxChanges) {
+    return;
+  }
+
+  // Fast equality check for primitives
+  if (local === production) {
+    return;
+  }
+
+  // Handle nulls and type mismatches
+  const localType = local === null ? 'null' : typeof local;
+  const prodType = production === null ? 'null' : typeof production;
+
+  // If types differ, it's a change
+  if (localType !== prodType ||
+      (isArray(local) !== isArray(production))) {
+    changes.push({
+      path: formatPath(path),
+      type: 'changed',
+      localValue: local,
+      productionValue: production,
+    });
+    return;
+  }
+
+  // Both are arrays
+  if (isArray(local) && isArray(production)) {
+    const maxLen = Math.max(local.length, production.length);
+    for (let i = 0; i < maxLen && changes.length < maxChanges; i++) {
+      if (i >= local.length) {
+        changes.push({
+          path: formatPath([...path, i]),
+          type: 'added',
+          productionValue: production[i],
+        });
+      } else if (i >= production.length) {
+        changes.push({
+          path: formatPath([...path, i]),
+          type: 'removed',
+          localValue: local[i],
+        });
       } else {
-        dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+        collectChanges(local[i], production[i], [...path, i], changes, maxChanges);
       }
     }
+    return;
   }
 
-  return dp;
-}
+  // Both are objects
+  if (isObject(local) && isObject(production)) {
+    const allKeys = new Set([...Object.keys(local), ...Object.keys(production)]);
 
-function backtrackDiff(dp: number[][], a: string[], b: string[]): DiffLine[] {
-  const lines: DiffLine[] = [];
-  let i = a.length;
-  let j = b.length;
-  let oldLineNum = a.length;
-  let newLineNum = b.length;
+    for (const key of allKeys) {
+      if (changes.length >= maxChanges) break;
 
-  while (i > 0 || j > 0) {
-    if (i > 0 && j > 0 && a[i - 1] === b[j - 1]) {
-      lines.unshift({
-        type: 'context',
-        content: a[i - 1],
-        oldLineNumber: oldLineNum,
-        newLineNumber: newLineNum,
-      });
-      i--;
-      j--;
-      oldLineNum--;
-      newLineNum--;
-    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
-      lines.unshift({
-        type: 'add',
-        content: b[j - 1],
-        newLineNumber: newLineNum,
-      });
-      j--;
-      newLineNum--;
-    } else if (i > 0) {
-      lines.unshift({
-        type: 'remove',
-        content: a[i - 1],
-        oldLineNumber: oldLineNum,
-      });
-      i--;
-      oldLineNum--;
-    }
-  }
+      const inLocal = key in local;
+      const inProd = key in production;
 
-  return lines;
-}
-
-function createHunks(lines: DiffLine[], contextSize: number = 3): DiffHunk[] {
-  const hunks: DiffHunk[] = [];
-  let currentHunk: DiffHunk | null = null;
-  let contextBuffer: DiffLine[] = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    if (line.type !== 'context') {
-      // Start a new hunk if needed
-      if (!currentHunk) {
-        currentHunk = {
-          oldStart: line.oldLineNumber ?? line.newLineNumber ?? 1,
-          oldLines: 0,
-          newStart: line.newLineNumber ?? line.oldLineNumber ?? 1,
-          newLines: 0,
-          lines: [],
-        };
-
-        // Add context from buffer
-        const context = contextBuffer.slice(-contextSize);
-        for (const ctx of context) {
-          currentHunk.lines.push(ctx);
-          currentHunk.oldLines++;
-          currentHunk.newLines++;
-          if (ctx.oldLineNumber && ctx.oldLineNumber < currentHunk.oldStart) {
-            currentHunk.oldStart = ctx.oldLineNumber;
-          }
-          if (ctx.newLineNumber && ctx.newLineNumber < currentHunk.newStart) {
-            currentHunk.newStart = ctx.newLineNumber;
-          }
-        }
-        contextBuffer = [];
-      }
-
-      currentHunk.lines.push(line);
-      if (line.type === 'remove') {
-        currentHunk.oldLines++;
-      } else if (line.type === 'add') {
-        currentHunk.newLines++;
-      }
-    } else {
-      if (currentHunk) {
-        // Check if we should close the hunk
-        let nextChangeIndex = -1;
-        for (let j = i + 1; j < lines.length && j <= i + contextSize * 2; j++) {
-          if (lines[j].type !== 'context') {
-            nextChangeIndex = j;
-            break;
-          }
-        }
-
-        if (nextChangeIndex === -1 || nextChangeIndex > i + contextSize * 2) {
-          // Close current hunk with trailing context
-          const trailingContext = [];
-          for (let j = i; j < lines.length && j < i + contextSize && lines[j].type === 'context'; j++) {
-            trailingContext.push(lines[j]);
-          }
-          for (const ctx of trailingContext) {
-            currentHunk.lines.push(ctx);
-            currentHunk.oldLines++;
-            currentHunk.newLines++;
-          }
-          hunks.push(currentHunk);
-          currentHunk = null;
-          contextBuffer = [];
-        } else {
-          // Continue hunk
-          currentHunk.lines.push(line);
-          currentHunk.oldLines++;
-          currentHunk.newLines++;
-        }
+      if (inLocal && !inProd) {
+        changes.push({
+          path: formatPath([...path, key]),
+          type: 'removed',
+          localValue: local[key],
+        });
+      } else if (!inLocal && inProd) {
+        changes.push({
+          path: formatPath([...path, key]),
+          type: 'added',
+          productionValue: production[key],
+        });
       } else {
-        contextBuffer.push(line);
+        collectChanges(local[key], production[key], [...path, key], changes, maxChanges);
       }
     }
+    return;
   }
 
-  // Close any remaining hunk
-  if (currentHunk) {
-    hunks.push(currentHunk);
-  }
-
-  return hunks;
+  // Primitives that are not equal
+  changes.push({
+    path: formatPath(path),
+    type: 'changed',
+    localValue: local,
+    productionValue: production,
+  });
 }
 
-export function compareResponses(local: QueryResponse, production: QueryResponse): { hasDiff: boolean; diff: DiffResult | null } {
-  const localJson = formatJson(local.data ?? local.error ?? { success: local.success });
-  const productionJson = formatJson(production.data ?? production.error ?? { success: production.success });
+function getResponseData(response: QueryResponse): unknown {
+  return response.data ?? response.error ?? { success: response.success };
+}
 
-  if (localJson === productionJson) {
+export function compareResponses(
+  local: QueryResponse,
+  production: QueryResponse
+): { hasDiff: boolean; diff: DiffResult | null } {
+  const localData = getResponseData(local);
+  const productionData = getResponseData(production);
+
+  // Fast check: stringify comparison for quick equality test
+  // This is O(n) and catches the common case of identical responses
+  const localStr = JSON.stringify(localData);
+  const prodStr = JSON.stringify(productionData);
+
+  if (localStr === prodStr) {
     return { hasDiff: false, diff: null };
   }
 
-  const localLines = localJson.split('\n');
-  const productionLines = productionJson.split('\n');
+  // Collect structural differences
+  const changes: DiffChange[] = [];
+  collectChanges(localData, productionData, [], changes, MAX_CHANGES);
 
-  const dp = computeLCS(localLines, productionLines);
-  const diffLines = backtrackDiff(dp, localLines, productionLines);
-  const hunks = createHunks(diffLines);
+  const truncated = changes.length >= MAX_CHANGES;
 
   return {
     hasDiff: true,
     diff: {
-      hunks,
-      localJson,
-      productionJson,
+      changes,
+      totalChanges: changes.length,
+      truncated,
     },
   };
 }

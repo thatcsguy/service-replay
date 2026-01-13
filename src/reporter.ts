@@ -23,8 +23,6 @@ export interface ReportData {
       variables: string;
     };
     hasDiff: boolean;
-    localJson: string;
-    productionJson: string;
     diff: QueryResult['diff'];
   }>;
 }
@@ -59,8 +57,6 @@ export function generateReport(results: QueryResult[], outputPath: string, comma
         variables: r.query.variables,
       },
       hasDiff: r.hasDiff,
-      localJson: formatJson(r.localResponse.data ?? r.localResponse.error ?? { success: r.localResponse.success }),
-      productionJson: formatJson(r.productionResponse.data ?? r.productionResponse.error ?? { success: r.productionResponse.success }),
       diff: r.diff,
     })),
   };
@@ -70,12 +66,4 @@ export function generateReport(results: QueryResult[], outputPath: string, comma
   const html = template.replace('</head>', `${dataScript}\n</head>`);
 
   writeFileSync(outputPath, html, 'utf-8');
-}
-
-function formatJson(data: unknown): string {
-  try {
-    return JSON.stringify(data, null, 2);
-  } catch {
-    return String(data);
-  }
 }

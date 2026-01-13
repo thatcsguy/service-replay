@@ -28,22 +28,14 @@ export interface QueryResponse {
 }
 
 export interface DiffResult {
-  hunks: DiffHunk[];
-  localJson: string;
-  productionJson: string;
+  changes: DiffChange[];
+  totalChanges: number;
+  truncated: boolean;
 }
 
-export interface DiffHunk {
-  oldStart: number;
-  oldLines: number;
-  newStart: number;
-  newLines: number;
-  lines: DiffLine[];
-}
-
-export interface DiffLine {
-  type: 'add' | 'remove' | 'context';
-  content: string;
-  oldLineNumber?: number;
-  newLineNumber?: number;
+export interface DiffChange {
+  path: string;
+  type: 'added' | 'removed' | 'changed';
+  localValue?: unknown;
+  productionValue?: unknown;
 }

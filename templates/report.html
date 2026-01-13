@@ -465,141 +465,141 @@
     }
 
     .diff-header {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       background: var(--bg-primary);
       border-bottom: 1px solid var(--border);
+      padding: 12px 20px;
     }
 
-    .diff-pane-header {
-      padding: 12px 20px;
+    .diff-header-title {
       font-size: 12px;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 1px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      color: var(--text-secondary);
     }
 
-    .diff-pane-header:first-child {
-      border-right: 1px solid var(--border);
-      color: var(--accent-amber);
-    }
-
-    .diff-pane-header:last-child {
-      color: var(--accent-cyan);
-    }
-
-    .diff-pane-icon {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-    }
-
-    .diff-pane-icon.local {
-      background: var(--accent-amber);
-      box-shadow: 0 0 8px var(--accent-amber-glow);
-    }
-
-    .diff-pane-icon.prod {
-      background: var(--accent-cyan);
-      box-shadow: 0 0 8px rgba(0, 212, 255, 0.3);
+    .diff-header-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent-red);
     }
 
     .diff-body {
       flex: 1;
       overflow: auto;
       background: var(--bg-secondary);
+      padding: 16px;
     }
 
-    .diff-table {
-      width: 100%;
-      border-collapse: collapse;
+    .change-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .change-item {
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .change-path {
+      padding: 10px 14px;
       font-family: 'JetBrains Mono', monospace;
       font-size: 12px;
-      line-height: 1.7;
-    }
-
-    .diff-row {
+      background: var(--bg-primary);
+      border-bottom: 1px solid var(--border);
       display: flex;
-      min-height: 22px;
+      align-items: center;
+      gap: 10px;
     }
 
-    .diff-cell {
-      flex: 1;
-      display: flex;
-      min-width: 0;
+    .change-path-text {
+      color: var(--accent-cyan);
+      word-break: break-all;
     }
 
-    .diff-cell:first-child {
-      border-right: 2px solid var(--border);
-    }
-
-    .diff-cell.empty {
-      background: var(--bg-tertiary);
-      opacity: 0.5;
-    }
-
-    .line-number {
-      width: 45px;
-      min-width: 45px;
-      padding: 0 8px;
-      text-align: right;
-      color: var(--text-muted);
-      background: var(--bg-tertiary);
-      user-select: none;
+    .change-type {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 3px 8px;
+      border-radius: 3px;
       flex-shrink: 0;
-      border-right: 1px solid var(--border);
     }
 
-    .line-content {
-      flex: 1;
-      padding: 0 12px;
-      white-space: pre;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .diff-cell.add {
-      background: var(--diff-add-bg);
-    }
-
-    .diff-cell.add .line-number {
+    .change-type.added {
       background: rgba(0, 255, 136, 0.15);
       color: var(--accent-green);
     }
 
-    .diff-cell.add .line-content {
-      border-left: 2px solid var(--accent-green);
-    }
-
-    .diff-cell.remove {
-      background: var(--diff-remove-bg);
-    }
-
-    .diff-cell.remove .line-number {
+    .change-type.removed {
       background: rgba(255, 71, 87, 0.15);
       color: var(--accent-red);
     }
 
-    .diff-cell.remove .line-content {
-      border-left: 2px solid var(--accent-red);
+    .change-type.changed {
+      background: rgba(255, 184, 0, 0.15);
+      color: var(--accent-amber);
     }
 
-    .diff-cell.empty .line-number {
-      background: rgba(30, 40, 50, 0.8);
-      color: transparent;
+    .change-values {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
     }
 
-    .diff-cell.empty .line-content {
-      background: repeating-linear-gradient(
-        -45deg,
-        transparent,
-        transparent 4px,
-        rgba(40, 50, 60, 0.5) 4px,
-        rgba(40, 50, 60, 0.5) 8px
-      );
+    .change-value {
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .change-value:first-child {
+      border-right: 1px solid var(--border);
+      background: var(--diff-remove-bg);
+    }
+
+    .change-value:last-child {
+      background: var(--diff-add-bg);
+    }
+
+    .change-value-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .change-value-content {
+      color: var(--text-primary);
+      word-break: break-all;
+      white-space: pre-wrap;
+    }
+
+    .change-value.empty {
+      background: var(--bg-tertiary);
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .truncated-warning {
+      background: rgba(255, 184, 0, 0.1);
+      border: 1px solid var(--accent-amber);
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      font-size: 12px;
+      color: var(--accent-amber);
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     /* JSON syntax highlighting */
@@ -769,14 +769,8 @@
         </div>
         <div class="diff-container">
           <div class="diff-header">
-            <div class="diff-pane-header">
-              <span class="diff-pane-icon local"></span>
-              Local
-            </div>
-            <div class="diff-pane-header">
-              <span class="diff-pane-icon prod"></span>
-              Production
-            </div>
+            <span class="diff-header-title">Changes</span>
+            <span class="diff-header-count" id="diff-count"></span>
           </div>
           <div class="diff-body" id="diff-body"></div>
         </div>
@@ -885,110 +879,98 @@
 
       renderDiff(result) {
         const container = document.getElementById('diff-body');
+        const countEl = document.getElementById('diff-count');
 
         if (!result.hasDiff) {
+          countEl.textContent = '';
           container.innerHTML = `
-            <div style="padding: 24px;">
-              <div class="no-diff-badge">
-                <span class="status-dot green"></span>
-                Responses are identical
-              </div>
-              <div class="unified-view">
-                <div class="unified-json">${this.highlightJson(result.localJson)}</div>
-              </div>
+            <div class="no-diff-badge">
+              <span class="status-dot green"></span>
+              Responses are identical
             </div>
           `;
           return;
         }
 
-        const localLines = result.localJson.split('\n');
-        const prodLines = result.productionJson.split('\n');
+        const diff = result.diff;
+        const changes = diff?.changes || [];
 
-        // Build diff maps - track which lines are removed/added
-        const removedLines = new Set();
-        const addedLines = new Set();
+        countEl.textContent = diff?.truncated
+          ? `${changes.length}+ changes (truncated)`
+          : `${changes.length} change${changes.length !== 1 ? 's' : ''}`;
 
-        if (result.diff && result.diff.hunks) {
-          for (const hunk of result.diff.hunks) {
-            for (const line of hunk.lines) {
-              if (line.type === 'remove' && line.oldLineNumber) {
-                removedLines.add(line.oldLineNumber - 1);
-              }
-              if (line.type === 'add' && line.newLineNumber) {
-                addedLines.add(line.newLineNumber - 1);
-              }
-            }
-          }
+        let html = '';
+
+        if (diff?.truncated) {
+          html += `
+            <div class="truncated-warning">
+              ⚠ Response differences exceeded limit. Showing first ${changes.length} changes.
+            </div>
+          `;
         }
 
-        // Build aligned rows
-        const rows = [];
-        let localIdx = 0;
-        let prodIdx = 0;
+        html += '<div class="change-list">';
 
-        while (localIdx < localLines.length || prodIdx < prodLines.length) {
-          const localRemoved = removedLines.has(localIdx);
-          const prodAdded = addedLines.has(prodIdx);
+        for (const change of changes) {
+          const typeClass = change.type;
+          const typeLabel = change.type === 'added' ? 'Added' :
+                           change.type === 'removed' ? 'Removed' : 'Changed';
 
-          if (localRemoved && !prodAdded) {
-            // Line only in local (removed)
-            rows.push({
-              local: { line: localLines[localIdx], num: localIdx + 1, type: 'remove' },
-              prod: null
-            });
-            localIdx++;
-          } else if (prodAdded && !localRemoved) {
-            // Line only in production (added)
-            rows.push({
-              local: null,
-              prod: { line: prodLines[prodIdx], num: prodIdx + 1, type: 'add' }
-            });
-            prodIdx++;
-          } else if (localRemoved && prodAdded) {
-            // Both changed - show side by side as modification
-            rows.push({
-              local: { line: localLines[localIdx], num: localIdx + 1, type: 'remove' },
-              prod: { line: prodLines[prodIdx], num: prodIdx + 1, type: 'add' }
-            });
-            localIdx++;
-            prodIdx++;
-          } else {
-            // Context line - same on both sides
-            rows.push({
-              local: localIdx < localLines.length ? { line: localLines[localIdx], num: localIdx + 1, type: '' } : null,
-              prod: prodIdx < prodLines.length ? { line: prodLines[prodIdx], num: prodIdx + 1, type: '' } : null
-            });
-            if (localIdx < localLines.length) localIdx++;
-            if (prodIdx < prodLines.length) prodIdx++;
-          }
+          const localValue = change.localValue !== undefined
+            ? this.formatValue(change.localValue)
+            : null;
+          const prodValue = change.productionValue !== undefined
+            ? this.formatValue(change.productionValue)
+            : null;
+
+          html += `
+            <div class="change-item">
+              <div class="change-path">
+                <span class="change-type ${typeClass}">${typeLabel}</span>
+                <span class="change-path-text">${this.escapeHtml(change.path)}</span>
+              </div>
+              <div class="change-values">
+                ${localValue !== null
+                  ? `<div class="change-value">
+                      <div class="change-value-label">Local</div>
+                      <div class="change-value-content">${this.escapeHtml(localValue)}</div>
+                    </div>`
+                  : `<div class="change-value empty">
+                      <div class="change-value-label">Local</div>
+                      <div class="change-value-content">(not present)</div>
+                    </div>`
+                }
+                ${prodValue !== null
+                  ? `<div class="change-value">
+                      <div class="change-value-label">Production</div>
+                      <div class="change-value-content">${this.escapeHtml(prodValue)}</div>
+                    </div>`
+                  : `<div class="change-value empty">
+                      <div class="change-value-label">Production</div>
+                      <div class="change-value-content">(not present)</div>
+                    </div>`
+                }
+              </div>
+            </div>
+          `;
         }
 
-        // Render aligned rows
-        const rowsHtml = rows.map(row => {
-          const localCell = row.local
-            ? `<div class="diff-cell ${row.local.type}">
-                <span class="line-number">${row.local.num}</span>
-                <span class="line-content">${this.highlightJson(this.escapeHtml(row.local.line))}</span>
-              </div>`
-            : `<div class="diff-cell empty">
-                <span class="line-number"></span>
-                <span class="line-content"></span>
-              </div>`;
+        html += '</div>';
+        container.innerHTML = html;
+      }
 
-          const prodCell = row.prod
-            ? `<div class="diff-cell ${row.prod.type}">
-                <span class="line-number">${row.prod.num}</span>
-                <span class="line-content">${this.highlightJson(this.escapeHtml(row.prod.line))}</span>
-              </div>`
-            : `<div class="diff-cell empty">
-                <span class="line-number"></span>
-                <span class="line-content"></span>
-              </div>`;
-
-          return `<div class="diff-row">${localCell}${prodCell}</div>`;
-        }).join('');
-
-        container.innerHTML = `<div class="diff-table">${rowsHtml}</div>`;
+      formatValue(value) {
+        if (value === null) return 'null';
+        if (value === undefined) return 'undefined';
+        if (typeof value === 'string') return `"${value}"`;
+        if (typeof value === 'object') {
+          try {
+            return JSON.stringify(value, null, 2);
+          } catch {
+            return String(value);
+          }
+        }
+        return String(value);
       }
 
       highlightJson(text) {
