@@ -41,6 +41,12 @@ export function generateReport(results: QueryResult[], outputPath: string, comma
 
   const withDiffs = results.filter(r => r.hasDiff).length;
 
+  // Sort results so queries with diffs appear first
+  const sortedResults = [...results].sort((a, b) => {
+    if (a.hasDiff === b.hasDiff) return 0;
+    return a.hasDiff ? -1 : 1;
+  });
+
   const reportData: ReportData = {
     generatedAt: new Date().toISOString(),
     command,
@@ -49,7 +55,7 @@ export function generateReport(results: QueryResult[], outputPath: string, comma
       withDiffs,
       withoutDiffs: results.length - withDiffs,
     },
-    results: results.map(r => ({
+    results: sortedResults.map(r => ({
       query: {
         operationName: r.query.operationName,
         executionId: r.query.executionId,
